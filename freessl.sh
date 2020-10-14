@@ -1,7 +1,7 @@
 #!/bin/sh
 SCRIPT_FILE_NAME=freessl.sh
 VERSION_DATE='10/10/2020 0119';
-
+VERSION='1.0.1'
 scrptLoc=$(pwd);
 SCRIPT_RUN_DATE=($(date +"%F %s"))
 
@@ -19,9 +19,6 @@ WEBSERVER_LOG_FILE=$WEBSERVER_PATH/logs/catalina.out
 # WEBSERVER_CONF_FILE=$WEBSERVER_PATH/conf/server.xml
 WEBSERVER_RESTART_WAIT_SECOND=60
 #----------------------DOMAIN CONFIGURATION ENDS------------------------#
-
-#TODO TEST: 
-#1) set domain without SSL certificate
 
 #No Colors
 NC='\033[0m'              # Text Reset/No Color
@@ -97,7 +94,6 @@ mkdir -p $FREE_SSL $FREE_SSL_LOG;
 cd $FREE_SSL
 
 CONFIG_FILE="$DOMAIN_NAME.conf"
-# SSL_DATA_DUMP_JSON="$DOMAIN_NAME.json"
 
 CRT_PATH="$LETSENCRYPT_PATH/live/$DOMAIN_NAME"
 WEBROOT_PATH="$WEBSERVER_PATH/webapps/$WEBAPP_DIR"
@@ -152,13 +148,8 @@ function fn_next_date_conf(){
 	fi
 }
 
-#TODO: Check below command to get expiry date
-#openssl x509 -noout -dates -in /etc/letsencrypt/live/billing.optimistix.work/cert.pem
-
 function fn_bundle_pfx_gen(){
-	# echo -e "${DATE_BUNDLEPFX_MODIFY[@]} printing for information"
 	if [ -z ${DATE_BUNDLEPFX_MODIFY[@]} ] || [ ${SCRIPT_RUN_DATE[1]} -ge ${DATE_NEXT_RENEWAL[1]} ];then
-		# echo -e "$($LOG_DATE): ${BRed}bundle.pfx not found or updated...${NC}";
 		echo -e "$($LOG_DATE): ${BBlue}Generating bundle.pfx...${NC}" >> $SCRIPT_LOG_FILE;
 		cd $CRT_PATH/
 		openssl pkcs12 -export -out $BUNDLE_PFX_FILE -inkey $PRIVKEY_PEM_FILE -in $CERT_PEM_FILE -certfile $CHAIN_PEM_FILE -password pass:$SSL_CRT_PASS
@@ -177,7 +168,6 @@ function fn_renewal(){
 
 		cd $LETSENCRYPT_PATH
 		./certbot-auto renew
-		# ./certbot-auto certonly --webroot -w $WEBROOT_PATH -d $DOMAIN_NAME
 	else
 		echo -e "$($LOG_DATE): ${BGreen}Renewal is due for $((((${DATE_NEXT_RENEWAL[1]}-${SCRIPT_RUN_DATE[1]}))/86400)) days and Next Renewal Date: ${DATE_NEXT_RENEWAL[0]} ${NC}" >> $SCRIPT_LOG_FILE;
 	fi
@@ -240,8 +230,6 @@ function fn_restartWebServer(){
 				tomcatStartFlag=0
 				if [ $waiter -eq 10 ];then
 					echo -e "$($LOG_DATE): ${BBlue}Sending notification... ${NC}" >> $SCRIPT_LOG_FILE
-					#TODO: Send Mail
-					# fn_sendMail
 					break;
 				else 
 					sleep $WEBSERVER_RESTART_WAIT_SECOND
@@ -276,9 +264,6 @@ if [ $crtPathXst -eq 1 ];then
 	ls $FULLCHAIN_PEM_FILE >>/dev/null 2>&1 && fullchainFile=1 || fullchainFile=0
 	ls $PRIVKEY_PEM_FILE >>/dev/null 2>&1 && privkeyFile=1 || privkeyFile=0
 
-	#TODO TEST: add crt resource checking
-	# echo "cert: $certFile chain: $chainFile fullchain: $fullchainFile privkey: $privkeyFile bundle: $bundlePFXFile";
-	
 	if [ $certFile -eq 1 ] && [ $chainFile -eq 1 ] && [ $fullchainFile -eq 1 ] && [ $privkeyFile -eq 1 ];then
 		echo -e "$($LOG_DATE): ${BGreen}Found all cert files...${NC}" >> $SCRIPT_LOG_FILE;
 		fn_renewal
@@ -294,16 +279,9 @@ if [ $crtPathXst -eq 1 ];then
 		echo -e "$($LOG_DATE): ${BBlue}Running fn_next_date_conf...${NC}" >> $SCRIPT_LOG_FILE;
 		fn_next_date_conf
 		
-		# fn_restartWebServer
 	else
 		echo -e "$($LOG_DATE): ${BRed}Some / All cert files are missing...${NC}" >> $SCRIPT_LOG_FILE;
-		#TODO: Send Mail
-		# fn_sendMail
 	fi
 else
 	echo -e "$($LOG_DATE): ${BRed}$CRT_PATH removed or SSL not installed${NC}" >> $SCRIPT_LOG_FILE;
-	#TODO: Send Mail: $CRT_PATH removed or SSL not installed
-	# fn_sendMail
 fi
-
-#0 10 * * 5 cd /etc/letsencrypt/ && ./certbot-auto renew && service tomcat restart
